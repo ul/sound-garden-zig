@@ -1,9 +1,7 @@
-const c = @cImport({
-    @cInclude("soundio/soundio.h");
-});
 const std = @import("std");
 const mem = std.mem;
 const warn = std.debug.warn;
+const c = @import("./c.zig").c;
 const TResult = @import("./result.zig").Result;
 const fmt = @import("./fmt.zig").fmt;
 
@@ -14,6 +12,7 @@ fn ioErr(comptime msg: []const u8, err: c_int) Io.Result {
 }
 
 pub const Io = struct {
+    sio: ?[*]c.SoundIo,
     in : ?*c.SoundIoDevice,
     out:  *c.SoundIoDevice, 
 
@@ -82,6 +81,7 @@ pub const Io = struct {
 
         return Result {
             .Ok = Io {
+                .sio = s,
                 .in  = in,
                 .out = @ptrCast(*c.SoundIoDevice, out_dev),
             }
@@ -89,12 +89,11 @@ pub const Io = struct {
     }
 
     fn deinit(self: Io) void {
-        const s = self.out.*.soundio;
         if (self.in) |in| {
             c.soundio_device_unref(@ptrCast(?[*]c.SoundIoDevice, in));
         }
         c.soundio_device_unref(@ptrCast(?[*]c.SoundIoDevice, self.out));
-        c.soundio_destroy(s);
+        c.soundio_destroy(self.sio);
     }
 };
 

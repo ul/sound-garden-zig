@@ -51,4 +51,7 @@ pub fn main() !void {
     };
     defer stream.deinit();
 
+    while (true) {
+        audio.c.soundio_wait_events(sio.sio);
+    }
 }
