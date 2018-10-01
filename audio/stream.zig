@@ -94,11 +94,10 @@ extern fn writeCallback(
     frame_count_max: c_int,
 ) void {
     const outstream = @ptrCast(*c.SoundIoOutStream, maybe_outstream);
-    var userdata: UserData = @ptrCast(*UserData, @alignCast(@alignOf(UserData), outstream.userdata)).*;
-    var context = userdata.context;
+    const userdata = @ptrCast(*UserData, @alignCast(@alignOf(UserData), outstream.userdata));
     const layout = &outstream.layout;
-    context.sample_rate = @intCast(usize, outstream.sample_rate);
-    context.sample_rate_float = @intToFloat(Sample, outstream.sample_rate);
+    userdata.context.sample_rate = @intCast(usize, outstream.sample_rate);
+    userdata.context.sample_rate_float = @intToFloat(Sample, outstream.sample_rate);
 
     var frames_left = frame_count_max;
     while (frames_left > 0) {
@@ -117,14 +116,13 @@ extern fn writeCallback(
         while (frame < frame_count) : (frame += 1) {
             var channel: usize = 0;
             while (channel < @intCast(usize, layout.channel_count)) : (channel += 1) {
-                context.channel = channel;
-                const sample = @floatCast(f32, userdata.signal.sample(&context));
+                userdata.context.channel = channel;
+                const sample = @floatCast(f32, userdata.signal.sample(&userdata.context));
                 const channel_ptr = areas[channel].ptr.?;
                 const sample_ptr = &channel_ptr[@intCast(usize, areas[channel].step * frame)];
                 @ptrCast(*f32, @alignCast(@alignOf(f32), sample_ptr)).* = sample;
             }
-            context.sample_number += 1;
-
+            userdata.context.sample_number += 1;
         }
 
         sio_err(c.soundio_outstream_end_write(maybe_outstream))

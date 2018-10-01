@@ -12,6 +12,10 @@ pub const silence = zero;
 pub const zero = Constant.init(0);
 pub const one = Constant.init(1);
 
+pub const Sine = oscillator(sine, "Sine");
+pub const Cosine = oscillator(cosine, "Cosine");
+pub const Tri = oscillator(triangle, "Tri");
+
 pub const Signal = struct {
     sampleFn: SampleFn, 
     label   : ?[]const u8,
@@ -104,6 +108,39 @@ pub const Phasor = struct {
     }
 };
 
+pub const Multicast = struct {
+    signal        : Signal,
+    samples       : [max_channels]Sample,
+    sample_numbers: [max_channels]usize,
+    x             : *Signal,
+
+    const Self = @This();
+
+    fn sample(signal: *Signal, ctx: *Context) Sample {
+        const self = @fieldParentPtr(Self, "signal", signal);
+        const i = ctx.channel;
+        if (ctx.sample_number > self.sample_numbers[i]) {
+            self.sample_numbers[i] = ctx.sample_number;
+            self.samples[i] = self.x.sample(ctx);
+        }
+        return self.samples[i];
+    }
+
+    fn init(x: *Signal) Self {
+        const signal = Signal {
+            .sampleFn = sample,
+            .label    = x.label,
+        };
+
+        return Self {
+            .signal         = signal,
+            .samples        = []Sample{0} ** max_channels,
+            .sample_numbers = []usize{0} ** max_channels,
+            .x              = x,
+        };
+    }
+};
+
 fn sine(phase: Sample) Sample {
     return math.sin(math.pi * phase); 
 }
@@ -120,10 +157,6 @@ fn triangle(phase: Sample) Sample {
         return 1.0 + x;
     }
 }
-
-pub const Sine = oscillator(sine, "Sine");
-pub const Cosine = oscillator(cosine, "Cosine");
-pub const Tri = oscillator(triangle, "Tri");
 
 pub fn oscillator(f: fn (Sample) Sample, label: []const u8) type {
     return struct {
