@@ -48,8 +48,8 @@ pub fn main() !void {
     var noise = audio.signal.WhiteNoise.init();
     var zero = audio.signal.zero;
     var freq = audio.signal.Constant.init(440);
-    var saw = audio.signal.Phasor.init(&freq.signal, &zero.signal);
-    var userdata = audio.stream.UserData.init(&saw.signal);
+    var sine = audio.signal.Sine.init(&freq.signal, &zero.signal);
+    var userdata = audio.stream.UserData.init(&sine.signal);
 
     const stream = switch (audio.Stream.init(sio, config.with_input, &userdata)) {
         audio.Stream.Result.Ok  => |x| x,

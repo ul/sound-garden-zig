@@ -104,6 +104,30 @@ pub const Phasor = struct {
     }
 };
 
+pub const Sine = struct {
+    signal: Signal,
+    phasor: Phasor,
+
+    const Self = @This();
+
+    fn sample(signal: *Signal, ctx: *Context) Sample {
+        const self = @fieldParentPtr(Self, "signal", signal);
+        return math.sin(math.pi * self.phasor.signal.sample(ctx));
+    }
+
+    fn init(freq: *Signal, phase0: *Signal) Self {
+        const signal = Signal {
+            .sampleFn = sample,
+            .label    = "Sine",
+        };
+
+        return Self {
+            .signal = signal,
+            .phasor = Phasor.init(freq, phase0),
+        };
+    }
+};
+
 fn getRandSeed() u64 {
     var buf: [8]u8 = undefined;
     std.os.getRandomBytes(buf[0..]) catch |err| std.debug.panic("{}", @errorName(err));
