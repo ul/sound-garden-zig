@@ -4,6 +4,7 @@ const warn = std.debug.warn;
 const panic = std.debug.panic;
 const c = @import("./c.zig").c;
 const Context = @import("./context.zig").Context;
+const Sample = @import("./context.zig").Sample;
 const signal = @import("./signal.zig");
 const TResult = @import("./result.zig").Result;
 const fmt = @import("./fmt.zig").fmt;
@@ -74,10 +75,11 @@ pub const UserData = struct {
 
     fn init(initial_signal: *signal.Signal) UserData {
         const context = Context {
-            .channel       = 0,
-            .sample_number = 0,
-            .sample_rate   = 0,
-            .input         = 0.0
+            .channel           = 0,
+            .sample_number     = 0,
+            .sample_rate       = 0,
+            .sample_rate_float = 0,
+            .input             = 0.0
         };
         return UserData {
             .context = context,
@@ -93,11 +95,12 @@ extern fn writeCallback(
 ) void {
     const outstream = @ptrCast(*c.SoundIoOutStream, maybe_outstream);
     var userdata: UserData = @ptrCast(*UserData, @alignCast(@alignOf(UserData), outstream.userdata)).*;
+    var context = userdata.context;
     const layout = &outstream.layout;
-    const float_sample_rate = @intToFloat(f64, outstream.sample_rate);
-    const seconds_per_frame = 1.0 / float_sample_rate;
-    var frames_left = frame_count_max;
+    context.sample_rate = @intCast(usize, outstream.sample_rate);
+    context.sample_rate_float = @intToFloat(Sample, outstream.sample_rate);
 
+    var frames_left = frame_count_max;
     while (frames_left > 0) {
         var frame_count = frames_left;
 
@@ -114,11 +117,14 @@ extern fn writeCallback(
         while (frame < frame_count) : (frame += 1) {
             var channel: usize = 0;
             while (channel < @intCast(usize, layout.channel_count)) : (channel += 1) {
-                const sample = @floatCast(f32, userdata.signal.sample(&userdata.context));
+                context.channel = channel;
+                const sample = @floatCast(f32, userdata.signal.sample(&context));
                 const channel_ptr = areas[channel].ptr.?;
                 const sample_ptr = &channel_ptr[@intCast(usize, areas[channel].step * frame)];
                 @ptrCast(*f32, @alignCast(@alignOf(f32), sample_ptr)).* = sample;
             }
+            context.sample_number += 1;
+
         }
 
         sio_err(c.soundio_outstream_end_write(maybe_outstream))
