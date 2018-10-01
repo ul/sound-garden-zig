@@ -21,15 +21,13 @@ pub const Stream = struct {
 
     const Result = TResult(Stream, []const u8);
 
-    fn init(io: Io, with_input: bool) Result {
+    fn init(io: Io, with_input: bool, userdata: *UserData) Result {
         const out = c.soundio_outstream_create(@ptrCast(?[*]c.SoundIoDevice, io.out))
             orelse return streamErr("unable to create out stream", @enumToInt(c.SoundIoErrorNoMem));
 
-        var userdata = UserData.init();
-
         out.*.format = c.SoundIoFormatFloat32NE;
         out.*.write_callback = writeCallback;
-        out.*.userdata = @ptrCast(?*c_void, &userdata);
+        out.*.userdata = @ptrCast(?*c_void, userdata);
 
         var err: c_int = 0;
 
@@ -70,11 +68,11 @@ pub const Stream = struct {
     }
 };
 
-const UserData = struct {
+pub const UserData = struct {
     context: Context,
-    signal: signal.Signal,
+    signal: *signal.Signal,
 
-    fn init() UserData {
+    fn init(initial_signal: *signal.Signal) UserData {
         const context = Context {
             .channel       = 0,
             .sample_number = 0,
@@ -83,7 +81,7 @@ const UserData = struct {
         };
         return UserData {
             .context = context,
-            .signal = signal.WhiteNoise.init().signal,
+            .signal = initial_signal,
         };
     }
 };
@@ -116,7 +114,7 @@ extern fn writeCallback(
         while (frame < frame_count) : (frame += 1) {
             var channel: usize = 0;
             while (channel < @intCast(usize, layout.channel_count)) : (channel += 1) {
-                const sample = @floatCast(f32, (&userdata.signal).sample(&userdata.context));
+                const sample = @floatCast(f32, userdata.signal.sample(&userdata.context));
                 const channel_ptr = areas[channel].ptr.?;
                 const sample_ptr = &channel_ptr[@intCast(usize, areas[channel].step * frame)];
                 @ptrCast(*f32, @alignCast(@alignOf(f32), sample_ptr)).* = sample;

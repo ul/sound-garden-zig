@@ -46,13 +46,13 @@ fn getRandSeed() u64 {
 
 pub const WhiteNoise = struct {
     signal: Signal,
-    rng: std.rand.Random,
+    rng: std.rand.DefaultPrng,
 
     const Self = @This();
 
     fn sample(signal: *Signal, ctx: *Context) Sample {
         const self = @fieldParentPtr(Self, "signal", signal);
-        return self.rng.float(Sample) * 2.0 - 1.0;
+        return self.rng.random.float(Sample) * 2.0 - 1.0;
     }
 
     fn init() Self {
@@ -61,11 +61,9 @@ pub const WhiteNoise = struct {
             .label    = "WhiteNoise",
         };
 
-        const rng = std.rand.DefaultPrng.init(getRandSeed());
-
         return Self {
             .signal = signal,
-            .rng    = rng.random,
+            .rng    = std.rand.DefaultPrng.init(getRandSeed()),
         };
     }
 };

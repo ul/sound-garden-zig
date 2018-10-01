@@ -45,7 +45,10 @@ pub fn main() !void {
     };
     defer sio.deinit();
 
-    const stream = switch (audio.Stream.init(sio, config.with_input)) {
+    var noise = audio.signal.WhiteNoise.init();
+    var userdata = audio.stream.UserData.init(&noise.signal);
+
+    const stream = switch (audio.Stream.init(sio, config.with_input, &userdata)) {
         audio.Stream.Result.Ok  => |x| x,
         audio.Stream.Result.Err => |s| panic("{}", s),
     };
