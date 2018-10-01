@@ -104,29 +104,52 @@ pub const Phasor = struct {
     }
 };
 
-pub const Sine = struct {
-    signal: Signal,
-    phasor: Phasor,
+fn sine(phase: Sample) Sample {
+    return math.sin(math.pi * phase); 
+}
 
-    const Self = @This();
+fn cosine(phase: Sample) Sample {
+    return math.cos(math.pi * phase); 
+}
 
-    fn sample(signal: *Signal, ctx: *Context) Sample {
-        const self = @fieldParentPtr(Self, "signal", signal);
-        return math.sin(math.pi * self.phasor.signal.sample(ctx));
+fn triangle(phase: Sample) Sample {
+    const x = 2 * phase; 
+    if (x > 0) {
+        return 1.0 - x;
+    } else {
+        return 1.0 + x;
     }
+}
 
-    fn init(freq: *Signal, phase0: *Signal) Self {
-        const signal = Signal {
-            .sampleFn = sample,
-            .label    = "Sine",
-        };
+pub const Sine = oscillator(sine, "Sine");
+pub const Cosine = oscillator(cosine, "Cosine");
+pub const Tri = oscillator(triangle, "Tri");
 
-        return Self {
-            .signal = signal,
-            .phasor = Phasor.init(freq, phase0),
-        };
-    }
-};
+pub fn oscillator(f: fn (Sample) Sample, label: []const u8) type {
+    return struct {
+        signal: Signal,
+        phasor: Phasor,
+
+        const Self = @This();
+
+        fn sample(signal: *Signal, ctx: *Context) Sample {
+            const self = @fieldParentPtr(Self, "signal", signal);
+            return f(self.phasor.signal.sample(ctx));
+        }
+
+        fn init(freq: *Signal, phase0: *Signal) Self {
+            const signal = Signal {
+                .sampleFn = sample,
+                .label    = label,
+            };
+
+            return Self {
+                .signal = signal,
+                .phasor = Phasor.init(freq, phase0),
+            };
+        }
+    };
+}
 
 fn getRandSeed() u64 {
     var buf: [8]u8 = undefined;
